@@ -1,5 +1,5 @@
 import './App.css';
-import { Card, Container, Form, Row, Col, Table, Button } from 'react-bootstrap';
+import { Card, Container, Form, Row, Col, Table, Button, Image } from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { useState } from 'react';
 import axios from 'axios';
@@ -25,6 +25,7 @@ function App() {
   const [freqFinalOccupation, setFreqFinalOccupation] = useState(null);
   const [freqInitialPercentage, setFreqInitialPercentage] = useState(null);
   const [freqFinalPercentage, setFreqFinalPercentage] = useState(null);
+  const [showTable, setShowTable] = useState('none');
 
   const onFileChange = event => {
     setSelectedFile(event.target.files[0]);
@@ -50,6 +51,15 @@ function App() {
     setFreqFinalPercentage(event.target.value);
   };
 
+  const setAllNull = () => {
+    setSelectedFile(null);
+    setNoiseThreshold(null);
+    setFreqInitialOccupation(null);
+    setFreqFinalOccupation(null);
+    setFreqInitialPercentage(null);
+    setFreqFinalPercentage(null);
+  };
+
   const onFileUpload = async () => {
     if (!selectedFile) {
       console.log("No file selected");
@@ -70,6 +80,10 @@ function App() {
       }
     }).then(response => {
       setResponseFetch(response.data);
+      setShowTable('flex');
+      setTimeout(() => {
+        document.getElementById('table').scrollIntoView({behavior: 'smooth'});
+      }, 0);
       console.log("File uploaded successfully", response.data);
     }).catch(error => {
       console.error("Error uploading file", error);
@@ -82,6 +96,8 @@ function App() {
 
   return (
     <Container>
+      <Image src='/Banner.png' style={{width: '100%', height: 'auto', marginTop: '20px'}}></Image>
+      <h1 style={{fontWeight: 'bold', marginTop: '20px'}}> Analizador de señales </h1>
       <Row>
         <Col>
           <Form.Group controlId="formFile" className="mb-3">
@@ -101,6 +117,9 @@ function App() {
             <Form.Control type="number" onChange={onFreqInitialOccupationChange} />
           </Form.Group>
         </Col>
+        </Row>
+        
+        <Row>  
         <Col>
           <Form.Group controlId="formFreqFinalOccupation" className="mb-3">
             <Form.Label>Freq. final Ocupacion </Form.Label>
@@ -120,14 +139,18 @@ function App() {
           </Form.Group>
         </Col>
       </Row>
-
-      <Button onClick={onFileUpload}>Upload</Button>
       <Row>
+        <Col lg={12} className="text-center">
+          <Button onClick={onFileUpload} style={{ width: '200px', marginBottom: '30px'}}>Upload</Button>
+        </Col>
+      </Row>
+
+      <Row id='table' style={{display: showTable}}>
         <Col>
           <Card style={{ border: 'none', borderRadius: '20px', boxShadow: '0px 0px 4px 4px rgba(0, 0, 0, 0.15)' }}>
             <Card.Body>
               <Card.Title><h2 style={{ fontWeight: 'bold' }}>Verificación de Parámetros</h2></Card.Title>
-              <Table>
+              <Table >
                 <thead>
                   <tr>
                     <th>Característica/Parametro</th>
@@ -146,7 +169,7 @@ function App() {
                     ) : (
                       <tr key={index}>
                         <td>{params[index]}</td>
-                        <td colSpan="2" style={{alignContent: 'center'}}> <img style={{height: 'auto', width: '80%'}} src={require('../../backend/' + responseFetch[key])} alt={params[index]}></img></td>
+                        <td colSpan="2" style={{textAlign: 'center'}}> <img style={{height: 'auto', width: '60%'}} src={require('../../backend/' + responseFetch[key])} alt={params[index]}></img></td>
                       </tr>
                     )
                   ))}
