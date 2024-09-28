@@ -29,7 +29,7 @@ const params = [
 
 function App() {
   const [selectedFile, setSelectedFile] = useState(null);
-  const [response, setResponse] = useState(null);
+  const [responseFetch, setResponseFetch] = useState(null);
   const [index, setIndex] = useState(null);
 
   const onIndexChange = event => {
@@ -61,11 +61,21 @@ function App() {
         'Content-Type': 'multipart/form-data'
       }
     }).then(response => {
-      console.log("File uploaded successfully", setResponse(response.data));
+      setResponseFetch(response.data)
+      console.log("File uploaded successfully", response.data);
     }).catch(error => {
       console.error("Error uploading file", error);
     });
+
+    console.log('AAAA', responseFetch);
   };
+
+
+  const getElements = (arr, pos) => {
+    return arr && arr.length > pos ? arr[pos] : arr;
+  }
+
+
 
 
   return (
@@ -100,12 +110,11 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {response && response.map((param, index) => (
+                  {responseFetch && Object.keys(responseFetch).map((key, index) => (
                     <tr key={index}>
                       <td>{params[index]}</td>
-                      <td>{param}</td>
-                      <td>...</td>
-                      <td>...</td>
+                      <td>{getElements(responseFetch[key], 0)}</td>
+                      <td>{getElements(responseFetch[key], 1)}</td>
                     </tr>
                   ))}
                 </tbody>
