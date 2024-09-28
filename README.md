@@ -33,4 +33,3 @@ npm start
 ## Licencia
 
 Este proyecto está bajo la GNU General Public License. Para más detalles, consulta el archivo [`LICENSE`](https://github.com/CODENEAS/CODEFEST2024-ELIMINATORIA/blob/main/LICENSE).
-# MISION2
