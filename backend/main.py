@@ -84,7 +84,10 @@ def getFormaSenal(matrix, index, frequencies, isRuido = False):
     plt.title("Forma de Señal")
     plt.xlabel("Frecuencia")
     plt.ylabel("Amplitud")
-    plt.savefig("images/formaSenal.png")
+    if isRuido:
+        plt.savefig("images/formaSenalRuido.png")
+    else:
+        plt.savefig("images/formaSenalNoRuido.png")
     plt.close()
 
     if isRuido:
