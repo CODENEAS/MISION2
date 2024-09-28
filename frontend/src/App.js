@@ -14,7 +14,8 @@ const params = [
   "Forma de la señal sin ruido",
   "Ocupación de espectro",
   "Porcentaje  BW",
-  "Espectograma sin ruido"
+  "Espectograma sin ruido",
+  "Crest factor"
 ];
 
 function App() {
