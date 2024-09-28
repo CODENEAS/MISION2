@@ -80,7 +80,8 @@ def process_csv(file: UploadFile = File(...), ruidoUmbral:int = -60, freqInicial
         "forma_senal_no_ruido": getFormaSenal(matrix_sin_ruido, 150, frequencies),
         "ocupacion": getOcupacion(matrix_sin_ruido, frequencies, freqInicialOcupacion*10**6, freqFinalOcupacion*10**6),
         "porcentaje_banda": getPorcentajeBanda(matrix_sin_ruido, freqInicialPorcentaje*10**6, freqFinalPorcentaje*10**6, frequencies),
-        "espectograma_no_ruido": getEspectograma(matrix_sin_ruido, frequencies)
+        "espectograma_no_ruido": getEspectograma(matrix_sin_ruido, frequencies),
+        "factor_crest": getCrest(matrix_sin_ruido)
     }
 
 def getFrecuenciaCentral(matrix, frequencies):
@@ -258,3 +259,7 @@ def getEspectograma(matrix, frequencies):
     plt.show()
 
     return "images/espectograma.png"
+
+def getCrest(matrix):
+    amp_izq, amp_der = getAmplitud(matrix)
+    return (amp_izq/(1/np.sqrt(2)), amp_der/(1/np.sqrt(2)))
