@@ -212,7 +212,7 @@ def getPorcentajeBanda(matrix, freqIni, freqFin, frequencies):
 
     for index in range(len(matrix)):
         for i in range(inicio, fin):
-            if matrix[index][i] != -100:
+            if round(matrix[index][i],2) != -100:
                 count+=1
                 
     return round(count/(len(matrix)*(fin-inicio))*100,2)
@@ -230,7 +230,7 @@ def getOcupacion(matrix, frequencies,inf, sup):
 
     for index in range(len(matrix)):
         for i in range(inicio, fin):
-            if matrix[index][i] != -100:
+            if round(matrix[index][i],2) != -100:
                 used += 1
                 break
     
