@@ -8,36 +8,46 @@ const params = [
   "Frecuencia central",
   "Ancho de banda (BW)",
   "Amplitud/ Potencia",
-  "Nivel de ruido",
+  "Ruido Promedio",
   "Relación señal-ruido (SNR)",
-  "Forma de la señal",
-  "Frecuencias de espuria",
-  "Frecuencias armónicas",
-  "Interferencias",
-  "Modulación",
-  "Picos espectrales",
-  "Análisis de ancho de banda ocupado",
-  "Crest factor",
-  "Frecuencia de repetición de pulso (PRF)",
-  "Análisis de canal adyacente",
-  "Drift de frecuencia",
-  "Tiempo de ocupación",
-  "Análisis de espectro temporal",
-  "Medición de potencia de canal"
+  "Forma de la señal con ruido",
+  "Forma de la señal sin ruido",
+  "Ocupación de espectro",
+  "Porcentaje  BW",
+  "Espectograma sin ruido"
 ];
-
 
 function App() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [responseFetch, setResponseFetch] = useState(null);
-  const [index, setIndex] = useState(null);
-
-  const onIndexChange = event => {
-    setIndex(event.target.value);
-  }
+  const [noiseThreshold, setNoiseThreshold] = useState(null);
+  const [freqInitialOccupation, setFreqInitialOccupation] = useState(null);
+  const [freqFinalOccupation, setFreqFinalOccupation] = useState(null);
+  const [freqInitialPercentage, setFreqInitialPercentage] = useState(null);
+  const [freqFinalPercentage, setFreqFinalPercentage] = useState(null);
 
   const onFileChange = event => {
     setSelectedFile(event.target.files[0]);
+  };
+
+  const onNoiseThresholdChange = event => {
+    setNoiseThreshold(event.target.value);
+  };
+
+  const onFreqInitialOccupationChange = event => {
+    setFreqInitialOccupation(event.target.value);
+  };
+
+  const onFreqFinalOccupationChange = event => {
+    setFreqFinalOccupation(event.target.value);
+  };
+
+  const onFreqInitialPercentageChange = event => {
+    setFreqInitialPercentage(event.target.value);
+  };
+
+  const onFreqFinalPercentageChange = event => {
+    setFreqFinalPercentage(event.target.value);
   };
 
   const onFileUpload = async () => {
@@ -47,36 +57,28 @@ function App() {
     }
 
     const formData = new FormData();
-
-    formData.append(
-      "file",
-      selectedFile,
-      selectedFile.name
-    );
-
-    console.log(selectedFile);
+    formData.append("file", selectedFile, selectedFile.name);
+    formData.append("ruidoUmbral", noiseThreshold);
+    formData.append("freqInicialOcupacion", freqInitialOccupation);
+    formData.append("freqFinalOcupacion", freqFinalOccupation);
+    formData.append("freqInicialPorcentaje", freqInitialPercentage);
+    formData.append("freqFinalPorcentaje", freqFinalPercentage);
 
     axios.post("http://127.0.0.1:8000/csv/", formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
     }).then(response => {
-      setResponseFetch(response.data)
+      setResponseFetch(response.data);
       console.log("File uploaded successfully", response.data);
     }).catch(error => {
       console.error("Error uploading file", error);
     });
-
-    console.log('AAAA', responseFetch);
   };
-
 
   const getElements = (arr, pos) => {
     return arr && arr.length > pos ? arr[pos] : arr;
-  }
-
-
-
+  };
 
   return (
     <Container>
@@ -88,9 +90,33 @@ function App() {
           </Form.Group>
         </Col>
         <Col>
-          <Form.Group controlId="formFile" className="mb-3">
-            <Form.Label>Ingresa un índice del momento en el tiempo </Form.Label>
-            <Form.Control type="number" onChange={onIndexChange} />
+          <Form.Group controlId="formNoiseThreshold" className="mb-3">
+            <Form.Label>Umbral de ruido (int) </Form.Label>
+            <Form.Control type="number" onChange={onNoiseThresholdChange} />
+          </Form.Group>
+        </Col>
+        <Col>
+          <Form.Group controlId="formFreqInitialOccupation" className="mb-3">
+            <Form.Label>Freq. inicial Ocupacion </Form.Label>
+            <Form.Control type="number" onChange={onFreqInitialOccupationChange} />
+          </Form.Group>
+        </Col>
+        <Col>
+          <Form.Group controlId="formFreqFinalOccupation" className="mb-3">
+            <Form.Label>Freq. final Ocupacion </Form.Label>
+            <Form.Control type="number" onChange={onFreqFinalOccupationChange} />
+          </Form.Group>
+        </Col>
+        <Col>
+          <Form.Group controlId="formFreqInitialPercentage" className="mb-3">
+            <Form.Label>Freq. inicial Porcentaje </Form.Label>
+            <Form.Control type="number" onChange={onFreqInitialPercentageChange} />
+          </Form.Group>
+        </Col>
+        <Col>
+          <Form.Group controlId="formFreqFinalPercentage" className="mb-3">
+            <Form.Label>Freq. final Porcentaje </Form.Label>
+            <Form.Control type="number" onChange={onFreqFinalPercentageChange} />
           </Form.Group>
         </Col>
       </Row>
@@ -111,11 +137,18 @@ function App() {
                 </thead>
                 <tbody>
                   {responseFetch && Object.keys(responseFetch).map((key, index) => (
-                    <tr key={index}>
-                      <td>{params[index]}</td>
-                      <td>{getElements(responseFetch[key], 0)}</td>
-                      <td>{getElements(responseFetch[key], 1)}</td>
-                    </tr>
+                    !["forma_señal_ruido", "forma_senal_no_ruido", "espectograma_no_ruido"].includes(key) ? (
+                      <tr key={index}>
+                        <td>{params[index]}</td>
+                        <td>{getElements(responseFetch[key], 0)}</td>
+                        <td>{getElements(responseFetch[key], 1)}</td>
+                      </tr>
+                    ) : (
+                      <tr key={index}>
+                        <td>{params[index]}</td>
+                        <td colSpan="2" style={{alignContent: 'center'}}> <img style={{height: 'auto', width: '80%'}} src={require('../../backend/' + responseFetch[key])} alt={params[index]}></img></td>
+                      </tr>
+                    )
                   ))}
                 </tbody>
               </Table>
