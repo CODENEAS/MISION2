@@ -1,4 +1,5 @@
 import matplotlib
+from matplotlib.colors import LinearSegmentedColormap
 matplotlib.use('Agg')
 from typing import Optional
 from fastapi import FastAPI, UploadFile, File
@@ -36,7 +37,7 @@ class CSVPath(BaseModel):
     path: str
 
 @app.post("/csv/")
-def process_csv(file: UploadFile = File(...)):
+def process_csv(file: UploadFile = File(...), ruidoUmbral:int = -60, freqInicialOcupacion:int=435, freqFinalOcupacion:int=440, freqInicialPorcentaje:int=433, freqFinalPorcentaje:int=440):
     # Leemos csv
     data = file.file.read().decode("utf-8").replace("\r", "").split("\n")
     
@@ -61,136 +62,41 @@ def process_csv(file: UploadFile = File(...)):
             fila.append(float(y))
         matrix.append(fila)
     
-    matrix = np.array(matrix).T
+    matrix = np.array(matrix, dtype="float64").T
+    matrix_sin_ruido = [x.copy() for x in matrix]
+
+    ruido_promedio = quitarRuido(matrix_sin_ruido, ruidoUmbral)
+
+    matrix_sin_ruido = np.array([savgol_filter(x, window_length=51, polyorder=2) for x in matrix_sin_ruido])
     
-            
-    #matrix = np.array([[float(y.replace(",",".")) for y in x[1:-1]] for x in data3[3:]]).T
-    # Suavizar
-    matrix = np.array([savgol_filter(x, window_length=51, polyorder=2) for x in matrix])
 
-    espurias = get_espurias(matrix, frequencies)
-
-    ruido_promedio = quitar_ruido(matrix)
-    # Procesamos csv
     return {
-        "frecuencia central": get_frecuencia_central(matrix, frequencies),
-        "ancho de banda": get_ancho_de_banda(matrix, frequencies),
-        "amplitud": get_amplitud(matrix),
-        "ruido promedio": ruido_promedio,
-        "SNR": get_snr(matrix, ruido_promedio),
-        "forma de señal": get_forma_de_senal(matrix, frequencies),
-        "espurias": espurias, # TODO
-        
+        "frecuencia_central": getFrecuenciaCentral(matrix_sin_ruido, frequencies),
+        "ancho_de_banda": getAnchoBanda(matrix_sin_ruido, frequencies),
+        "amplitud": getAmplitud(matrix_sin_ruido),
+        "ruido_promedio": round(ruido_promedio,2),
+        "snr": getSNR(matrix_sin_ruido, ruido_promedio),
+        "forma_señal_ruido": getFormaSenal(matrix, 150, frequencies, isRuido=True),
+        "forma_senal_no_ruido": getFormaSenal(matrix_sin_ruido, 150, frequencies),
+        "ocupacion": getOcupacion(matrix_sin_ruido, frequencies, freqInicialOcupacion*10**6, freqFinalOcupacion*10**6),
+        "porcentaje_banda": getPorcentajeBanda(matrix_sin_ruido, freqInicialPorcentaje*10**6, freqFinalPorcentaje*10**6, frequencies),
+        "espectograma_no_ruido": getEspectograma(matrix_sin_ruido, frequencies)
     }
 
-def get_espurias(matrix, frequencies):
+def getFrecuenciaCentral(matrix, frequencies):
+
     mas_derecha = (0,float("-inf"))
     mas_izquierda = (0,float("-inf"))
 
     l = len(matrix[0])
 
     for col in range(0,l//2):
-        # MAyor de la columna
         if np.max(matrix[:,col]) >= mas_izquierda[1]:
             mas_izquierda = (col, np.max(matrix[:,col]))
         else:
             break
     
     for col in range(l-1,l//2, -1):
-        # MAyor de la columna
-        if np.max(matrix[:,col]) >= mas_derecha[1]:
-            mas_derecha = (col, np.max(matrix[:,col]))
-        else:
-            break
-    
-    izquierda = mas_izquierda[0]
-    derecha = mas_derecha[0]
-
-    # TODO
-    
-
-def get_forma_de_senal(matrix, frequencies):
-
-    l = len(matrix[0])
-
-    for col in range(0,l//2):
-        # MAyor de la columna
-        mayor_columna = np.max(matrix[:,col])
-        if mayor_columna != -100:
-            # Buscar fila
-            index = 0
-            while matrix[index][col] != mayor_columna:
-                index += 1
-            break
-    inicio = col
-    while matrix[index][col] != -100:
-        col += 1
-    fin = col
-
-    para_graficar = [round(x,2) for x in matrix[index,inicio:fin].tolist()]
-    graf_freq = frequencies[inicio:fin]
-    plt.plot(graf_freq, para_graficar)
-    plt.title("Forma de Señal Izquierda")
-    plt.xlabel("Frecuencia")
-    plt.ylabel("Amplitud")
-    plt.savefig("images/izquierda.png")
-    plt.close()
-
-    for col in range(l-1,l//2,-1):
-        # MAyor de la columna
-        mayor_columna = np.max(matrix[:,col])
-        if mayor_columna != -100:
-            # Buscar fila
-            index = 0
-            while matrix[index][col] != mayor_columna:
-                index += 1
-            break
-    inicio = col
-    while matrix[index][col] != -100:
-        col -= 1
-    fin = col
-
-    para_graficar = [round(x,2) for x in matrix[index,fin+1:inicio].tolist()]
-    graf_freq = frequencies[fin+1:inicio]
-    plt.plot(graf_freq, para_graficar)
-    plt.title("Forma de Señal Derecha")
-    plt.xlabel("Frecuencia")
-    plt.ylabel("Amplitud")
-    plt.savefig("images/derecha.png")
-    plt.close()
-
-    return "images/izquierda.png", "images/derecha.png"
-
-def get_snr(matrix, ruido_promedio):
-    amplitud = get_amplitud(matrix)
-    return (amplitud[0]/ruido_promedio, amplitud[1]/ruido_promedio)
-
-def quitar_ruido(matrix):
-    total = 0
-    conteo = 0
-    for i in range(len(matrix)):
-        for j in range(len(matrix[i])):
-            if matrix[i][j] < -60:
-                total += matrix[i][j]
-                conteo += 1
-                matrix[i][j] = -100
-    return total/conteo
-
-def get_frecuencia_central(matrix, frequencies):
-    mas_derecha = (0,float("-inf"))
-    mas_izquierda = (0,float("-inf"))
-
-    l = len(matrix[0])
-
-    for col in range(0,l//2):
-        # MAyor de la columna
-        if np.max(matrix[:,col]) >= mas_izquierda[1]:
-            mas_izquierda = (col, np.max(matrix[:,col]))
-        else:
-            break
-    
-    for col in range(l-1,l//2, -1):
-        # MAyor de la columna
         if np.max(matrix[:,col]) >= mas_derecha[1]:
             mas_derecha = (col, np.max(matrix[:,col]))
         else:
@@ -198,37 +104,55 @@ def get_frecuencia_central(matrix, frequencies):
     
     return (frequencies[mas_izquierda[0]], frequencies[mas_derecha[0]])
 
-def get_ancho_de_banda(matrix, frequencies):
+def getFormaSenal(matrix, index, frequencies, isRuido = False):
+
+    data = [round(x,2) for x in matrix[index,:].tolist()]
+    plt.plot(frequencies, data)
+    plt.title("Forma de Señal")
+    plt.xlabel("Frecuencia")
+    plt.ylabel("Amplitud")
+    if isRuido:
+        plt.savefig("images/formaSenalRuido.png")
+    else:
+        plt.savefig("images/formaSenalNoRuido.png")
+    plt.close()
+
+    if isRuido:
+        return "images/formaSenalRuido.png"
+    else:
+        return "images/formaSenalNoRuido.png"
+
+def getAnchoBanda(matrix, frequencies):
 
     l = len(matrix[0])
 
     for col in range(0,l//2):
-        # MAyor de la columna
         mayor_columna = np.max(matrix[:,col])
-        if mayor_columna != -100:
-            # Buscar fila
+        
+        if round(mayor_columna,2) != -100:
             index = 0
             while matrix[index][col] != mayor_columna:
                 index += 1
             break
     inicio = frequencies[col]
-    while matrix[index][col] != -100:
+
+    while round(matrix[index][col],2) != -100:
         col += 1
+
     fin = frequencies[col]
 
     izquierda = fin-inicio
 
     for col in range(l-1,l//2,-1):
-        # MAyor de la columna
         mayor_columna = np.max(matrix[:,col])
-        if mayor_columna != -100:
+        if round(mayor_columna,2) != -100:
             # Buscar fila
             index = 0
             while matrix[index][col] != mayor_columna:
                 index += 1
             break
     inicio = frequencies[col]
-    while matrix[index][col] != -100:
+    while round(matrix[index][col],2) != -100:
         col -= 1
     fin = frequencies[col]
 
@@ -236,7 +160,7 @@ def get_ancho_de_banda(matrix, frequencies):
 
     return (izquierda, derecha)
 
-def get_amplitud(matrix):
+def getAmplitud(matrix):
     mas_derecha = float("-inf")
     mas_izquierda = float("-inf")
 
@@ -257,3 +181,80 @@ def get_amplitud(matrix):
             break
     
     return (mas_izquierda, mas_derecha)
+
+def getSNR(matrix, ruido_promedio):
+    amplitud = getAmplitud(matrix)
+    return (amplitud[0]/ruido_promedio, amplitud[1]/ruido_promedio)
+
+
+def quitarRuido(matrix, umbral):
+    total = 0
+    conteo = 0
+    for i in range(len(matrix)):
+        for j in range(len(matrix[i])):
+            if matrix[i][j] < umbral:
+                total += matrix[i][j]
+                conteo += 1
+                matrix[i][j] = -100
+    return total/conteo
+
+def getPorcentajeBanda(matrix, freqIni, freqFin, frequencies):
+    
+    count = 0
+
+    inicio = 0
+
+    while(frequencies[inicio] < freqIni):
+        inicio += 1
+    fin = inicio
+    while(frequencies[fin] < freqFin and fin <len(frequencies)-1):
+        fin += 1
+
+    for index in range(len(matrix)):
+        for i in range(inicio, fin):
+            if matrix[index][i] != -100:
+                count+=1
+                
+    return round(count/(len(matrix)*(fin-inicio))*100,2)
+
+def getOcupacion(matrix, frequencies,inf, sup):
+    inicio = 0
+
+    while(frequencies[inicio] < inf):
+        inicio += 1
+    fin = inicio
+    while(frequencies[fin] < sup and fin <len(frequencies)-1):
+        fin += 1
+
+    used = 0
+
+    for index in range(len(matrix)):
+        for i in range(inicio, fin):
+            if matrix[index][i] != -100:
+                used += 1
+                break
+    
+    return round((used/len(matrix))*100,2)
+
+def getEspectograma(matrix, frequencies):
+    colors = [
+    (0, '#00D3FF'),    
+    (0.33, '#09FF00'), 
+    (0.75, 'yellow'), 
+    (1, 'red')     
+    ]
+
+    custom_cmap = LinearSegmentedColormap.from_list('custom_coolwarm', colors)
+
+
+    plt.figure(figsize=(10, 10))
+    plt.imshow(matrix, aspect='auto', origin='lower', cmap=custom_cmap)
+    plt.title('Spectrogram')
+    plt.xlabel('Frequency MHz')
+    plt.ylabel('Time')
+    plt.colorbar(label='Magnitude [dBm]')
+    plt.savefig("images/espectograma.png")
+    plt.close()
+    plt.show()
+
+    return "images/espectograma.png"
